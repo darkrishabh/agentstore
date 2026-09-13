@@ -1,0 +1,22 @@
+{
+  "name": "agentstore-local",
+  "owner": {
+    "name": "Rishabh Mehan"
+  },
+  "metadata": {
+    "description": "Local development marketplace for AgentStore integrations."
+  },
+  "plugins": [
+    {
+      "name": "agentstore",
+      "source": "./plugins/agentstore",
+      "description": "Reliable save and retrieval routing for AgentStore.",
+      "version": "0.2.0",
+      "author": {
+        "name": "Rishabh Mehan"
+      },
+      "category": "Productivity",
+      "tags": ["mcp", "notes", "todos", "object-store"]
+    }
+  ]
+}

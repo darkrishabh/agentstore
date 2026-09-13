@@ -1,0 +1,8 @@
+{
+  "name": "agentstore",
+  "version": "0.2.0",
+  "description": "Reliable save and retrieval routing for AgentStore.",
+  "author": {
+    "name": "Rishabh Mehan"
+  }
+}

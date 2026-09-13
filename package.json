@@ -1,0 +1,34 @@
+{
+  "name": "agentstore",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A deterministic, user-owned object store for AI agents.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "dashboard": "tsx src/dashboard-server.ts",
+    "mcp": "tsx src/mcp.ts",
+    "mcp:http": "node --env-file-if-exists=.env.local --import tsx src/mcp-http.ts",
+    "mcp:tunnel": "node --env-file-if-exists=.env.local scripts/run-tunnel.mjs",
+    "seed": "tsx src/seed-and-test.ts",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "better-sqlite3": "^13.0.3",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.10.0",
+    "tsx": "^4.20.6",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

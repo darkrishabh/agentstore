@@ -1,0 +1,21 @@
+{
+  "name": "agentstore",
+  "version": "0.2.0",
+  "description": "Reliable save and retrieval routing for AgentStore.",
+  "author": {
+    "name": "Rishabh Mehan"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AgentStore",
+    "shortDescription": "Save and retrieve portable agent-owned objects.",
+    "longDescription": "Routes explicit save requests and reliable paginated retrieval through an already-connected AgentStore MCP server.",
+    "developerName": "Rishabh Mehan",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": [
+      "Save this to my AgentStore notes.",
+      "Show me all my saved notes."
+    ]
+  }
+}
