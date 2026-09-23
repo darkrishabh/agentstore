@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a focused improvement to the open-source core or its adapters
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What concrete user problem cannot be handled by the current five-operation core?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe behavior and API/schema effects, not just an implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Could this live in the calling agent or an adapter instead of the core?
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This preserves deterministic execution and keeps natural-language interpretation in the client, or explains why the project boundary should change.
+          required: true

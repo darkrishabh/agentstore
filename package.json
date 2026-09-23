@@ -1,18 +1,38 @@
 {
   "name": "agentstore",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "A deterministic, user-owned object store for AI agents.",
+  "license": "Apache-2.0",
+  "author": "Rishabh Mehan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darkrishabh/agentstore.git"
+  },
+  "bugs": {
+    "url": "https://github.com/darkrishabh/agentstore/issues"
+  },
+  "homepage": "https://github.com/darkrishabh/agentstore#readme",
+  "keywords": [
+    "agents",
+    "mcp",
+    "object-store",
+    "sqlite"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
+    "ci": "npm run check && npm test && npm run build && npm run validate:distribution && npm run docs:check",
     "dashboard": "tsx src/dashboard-server.ts",
+    "docs:check": "node scripts/check-docs.mjs",
     "mcp": "tsx src/mcp.ts",
     "mcp:http": "node --env-file-if-exists=.env.local --import tsx src/mcp-http.ts",
     "mcp:tunnel": "node --env-file-if-exists=.env.local scripts/run-tunnel.mjs",
+    "release:check": "npm run ci && npm audit --audit-level=high && npm pack --dry-run",
     "seed": "tsx src/seed-and-test.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "validate:distribution": "node scripts/validate-distribution.mjs"
   },
   "engines": {
     "node": ">=22"

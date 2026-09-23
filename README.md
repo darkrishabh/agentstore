@@ -1,165 +1,131 @@
-# AgentStore
+<p align="center">
+  <img src="./docs/assets/agentstore-banner.png" alt="AgentStore — Your data. Any agent." width="100%" />
+</p>
 
-AgentStore is a deliberately simple, user-owned object store for information that should remain portable across AI agents. One agent can save a structured object and another can discover and retrieve it later.
+<p align="center">
+  <a href="https://github.com/darkrishabh/agentstore/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/darkrishabh/agentstore/ci.yml?branch=main&style=flat-square&label=CI" alt="CI status" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-f4b860?style=flat-square" alt="Apache License 2.0" /></a>
+  <img src="https://img.shields.io/badge/status-open--source_alpha-6b7280?style=flat-square" alt="Status: open-source alpha" />
+  <img src="https://img.shields.io/badge/Node.js-22%2B-339933?style=flat-square" alt="Node.js 22 or later" />
+  <img src="https://img.shields.io/badge/storage-SQLite-003B57?style=flat-square" alt="SQLite storage" />
+  <img src="https://img.shields.io/badge/adapter-MCP-111827?style=flat-square" alt="MCP adapter" />
+</p>
 
-> Natural-language interpretation belongs in the calling agent. Deterministic query execution belongs in the store.
+<p align="center">
+  <a href="#the-idea-in-10-seconds">The idea</a> ·
+  <a href="#try-it-locally">Quick start</a> ·
+  <a href="./docs/GETTING_STARTED.md">Connect your agents</a> ·
+  <a href="./docs/ARCHITECTURE.md">Architecture</a> ·
+  <a href="./CONTRIBUTING.md">Contribute</a>
+</p>
 
-## What this is
+## Save in Claude. Find in Codex.
 
-AgentStore is a small persistence and retrieval layer with five operations: `put`, `get`, `list`, `search`, and `delete`.
+**One place for the things you tell your agents to keep.**
 
-Its core model is:
+AgentStore is a small, user-owned object store. Connect your agents to the same store, save something in one conversation, and retrieve it from another agent later. Your data lives in a local SQLite file—not inside a particular agent's chat history.
 
-```text
-key      = identity
-kind     = behavioral intent
-labels   = semantic hints
-value    = user payload
-metadata = deterministic retrieval information
-```
+### The idea in 10 seconds
 
-Objects have a stable key, a small standardized kind, free-form labels, an arbitrary JSON value, timestamps, a version, optional source client, optional behavioral fields, and optional logical expiration.
+| You say | Your connected agent does |
+| --- | --- |
+| “Save this to my notes: the launch checklist is ready.” | Writes a structured note to AgentStore. |
+| “What did I save about the launch?” | Searches for candidates, then fetches the selected object. |
+| “Show me all my notes.” | Lists your notes, following every cursor page. |
 
-## What this is not
+**Switch agents. Keep your stuff.** All clients must connect to the same database/server. The optional routing skill helps turn ordinary save/retrieve requests into tool calls; write approvals and model behavior still apply.
 
-AgentStore is not AI memory, RAG, a vector database, a knowledge graph, a notes app, a calendar, a reminder engine, or a workflow system. It makes no LLM calls and does no automatic classification.
+## Small core. Useful things.
 
-MCP is one adapter over the core storage service, not the canonical AgentStore protocol. SQLite is the MVP persistence layer, not a permanent product constraint.
+| What you get | Why it matters |
+| --- | --- |
+| **Five operations** | `put` · `get` · `list` · `search` · `delete`. That's the core. |
+| **Objects, not just text** | Stable keys, kinds, labels, arbitrary JSON values, versions, timestamps, and optional TTL. |
+| **Inspectable retrieval** | Structured filters, prefix-aware FTS5, indexed labels, and phone/email/URL shape matching. |
+| **Complete lists** | Cursor pagination and total counts—not a silently truncated first page. |
+| **A CRUD dashboard** | Browse, search, inspect, create, edit, and delete in your browser. |
+| **Agent adapters** | MCP over stdio or Streamable HTTP, plus optional Codex and Claude routing plugins. |
 
-## MVP retrieval
+## Try it locally
 
-Search combines deterministic structured filters with three inspectable, bounded retrieval paths:
-
-1. weighted prefix-aware SQLite FTS5 over key, labels, description, and searchable text;
-2. an indexed normalized-label table for exact filters and label prefixes;
-3. indexed shape flags for phone numbers, email addresses, and URLs.
-
-Search returns lightweight candidates with scores, matched fields, and snippets. It intentionally omits full JSON values. Call `get` after choosing a candidate.
-
-Retrieval queries never load the full active table into application memory. Candidate queries are bounded, and `list` uses opaque cursor pagination so a caller can traverse every object without an arbitrary 5,000-row or 100-row ceiling.
-
-The seed experiment includes a deliberate vocabulary mismatch—`the guy who fixed the sink` versus `the plumber who repaired the kitchen faucet`—so lexical retrieval limits remain visible rather than being hidden by embeddings.
-
-## Run locally
-
-Requires Node.js 22 or later.
+Requires **Node.js 22+**. From a fresh checkout:
 
 ```bash
-npm install
-npm test
-npm run seed
+git clone https://github.com/darkrishabh/agentstore.git
+cd agentstore
+npm ci
 npm run dashboard
-npm run mcp
-npm run mcp:http
 ```
 
-`npm run seed` recreates `data/demo.sqlite`, inserts 42 realistic objects, and prints lexical and structured retrieval results.
+Open **[localhost:4310](http://127.0.0.1:4310)** to create your first object.
 
-By default the MCP server persists to `data/agentstore.sqlite`. Set `AGENTSTORE_DB_PATH` to use another SQLite file.
-
-## Dashboard
-
-Run `npm run dashboard`, then open `http://127.0.0.1:4310`. The dashboard and MCP adapter both use `data/agentstore.sqlite` by default, so objects written through an agent appear in the dashboard. Set `AGENTSTORE_DB_PATH` on both processes to use another SQLite file.
-
-The dashboard provides store metrics, keyword and structured filtering, compact ranked candidates, full-object inspection, JSON copying, object creation/update, and deletion. Its HTTP endpoints are a local UI adapter over the same storage core; they are not a new canonical AgentStore protocol.
-
-## Connect from Claude Code
-
-For the local Streamable HTTP server, first run `npm run mcp:http`, then register it for all Claude Code projects:
-
-```bash
-claude mcp add --transport http --scope user agentstore http://127.0.0.1:4311/mcp
-```
-
-The original stdio option remains available from this repository with `claude mcp add agentstore -- npm run mcp`.
-
-The adapter exposes exactly these tools:
-
-```text
-store_object
-get_object
-search_objects
-list_objects
-delete_object
-```
-
-## Connect from Codex
-
-For the local Streamable HTTP server, first run `npm run mcp:http`, then register it once:
-
-```bash
-codex mcp add agentstore --url http://127.0.0.1:4311/mcp
-```
-
-The original stdio registration remains available:
-
-```bash
-codex mcp add agentstore \
-  --env AGENTSTORE_DB_PATH="$PWD/data/agentstore.sqlite" \
-  -- npm --prefix "$PWD" run mcp
-```
-
-Run `codex mcp list` to confirm it was saved, then restart the Codex app or CLI session. The ChatGPT desktop app, Codex CLI, and Codex IDE extension share this local Codex MCP configuration.
-
-The HTTP endpoint is intentionally bound only to `127.0.0.1`; “remote MCP” here describes the transport, not public Internet access. Both clients must run on the same machine, and `npm run mcp:http` must remain running. The MCP adapter and dashboard share `data/agentstore.sqlite` by default.
-
-Set `AGENTSTORE_MCP_TOKEN` to require a bearer token on `/mcp`. This is mandatory before forwarding the endpoint through a public HTTPS tunnel. The `/health` endpoint remains unauthenticated for local monitoring.
-
-For remote access, configure your own Cloudflare tunnel and HTTPS hostname pointing to the server's `/mcp` endpoint. Copy `.env.example` to the gitignored `.env.local`, set a long bearer token and your own tunnel ID, then run the server and tunnel as separate processes:
+In a **second terminal**, from the repository root:
 
 ```bash
 npm run mcp:http
-npm run mcp:tunnel
 ```
 
-The bearer token is stored in the gitignored `.env.local` file for the local server. Codex and Claude must send the same token in an `Authorization: Bearer ...` header.
+Your local MCP endpoint is **`http://127.0.0.1:4311/mcp`**. The dashboard and MCP server share `data/agentstore.sqlite` by default.
 
-## Save behavior
+→ **[Connect Codex or Claude, install routing plugins, and configure HTTPS](./docs/GETTING_STARTED.md)**
 
-The MCP adapter publishes server instructions and a strongly worded `store_object` description telling clients to call the tool whenever the user explicitly asks to save, remember, preserve, or keep something, and never to claim success unless the call succeeds.
+> AgentStore is an open-source alpha for local, single-user use. It is not a production hosted or multi-tenant service.
 
-The optional routing plugin in `plugins/agentstore` reinforces this behavior and teaches Codex and Claude to paginate complete list requests, use search then get, include named entities in shape queries, and retry thin lexical searches with shorter terms or close synonyms. A skill improves routing consistency; it cannot guarantee that every model will invoke a tool.
+## What gets saved?
 
-The plugin deliberately does not bundle the current bearer-token tunnel. Install or register the MCP connection separately, so a private development credential is never embedded in a distributable package.
+A predictable envelope around **your** payload:
 
-### Test the plugin in Codex
-
-The repository contains a local marketplace at `.agents/plugins/marketplace.json` and a portable Agent Plugins manifest.
-
-```bash
-codex plugin marketplace add "$PWD"
+```json
+{
+  "key": "notes/launch-checklist",
+  "kind": "note",
+  "labels": ["launch", "product"],
+  "value": {
+    "text": "The launch checklist is ready."
+  }
+}
 ```
 
-Restart the ChatGPT desktop app, choose the `personal` marketplace source, and install AgentStore. Keep the separately registered `agentstore` MCP server enabled.
+AgentStore adds version and timestamp metadata. Kinds are `note`, `todo`, `reminder`, `calendar`, `reference`, and `other`. The value can be any JSON—not just a document or string.
 
-### Install the plugin in Claude Code
+## Smart agent. Predictable store.
 
-The repository also contains a Claude Code marketplace and compatibility manifest:
+**The agent interprets what you mean. The store executes the query.**
 
-```bash
-claude plugin marketplace add "$PWD"
-claude plugin install agentstore@agentstore-local --scope user
-```
+`search` returns compact candidates with scores, matched fields, and snippets. `get` returns the full object. No LLM calls, embeddings, or automatic classification happen inside AgentStore.
 
-For development without installing, run `claude --plugin-dir "$PWD/plugins/agentstore"` from the repository root. Then invoke `/agentstore:agentstore-routing` explicitly once, or make a natural request such as “save this to my todos.” The separately registered `agentstore` MCP server must remain enabled.
+Lexical search has limits: paraphrases and typos may need the calling agent to try shorter terms or close synonyms. A high ranking is a retrieval signal, not proof that an object answers the question.
 
-## Tests
+### Intentionally not
+
+RAG. A vector database. A knowledge graph. Hidden agent memory. A workflow or reminder engine.
+
+MCP is **an adapter**, not the canonical protocol. SQLite is **the MVP backend**, not the product boundary. Store information now; let the agent decide how to use it later.
+
+## Built to be checked
 
 ```bash
 npm run check
 npm test
 npm run build
-npm audit --omit=dev
+npm audit
 ```
 
-The test suite covers CRUD and versioning, FTS synchronization, prefix and label retrieval, structured filters, TTL, indexed shape matching, legacy-database migration, complete cursor traversal, statistics beyond one page, MCP pagination, authentication, and a label-only target beyond 5,000 records.
+Tests cover CRUD, versioning, TTL, FTS synchronization, structured and shape filters, migration, complete pagination, large-store label retrieval, MCP responses, and HTTP authentication.
 
-The neutral comparison harness lives in the sibling `agentstore-bench` workspace. It records raw JSON, provenance hashes, per-query ranks, local latency, scale behavior, and capability checks for both implementations.
+## Open-source core
 
-## Open-source readiness
+AgentStore is licensed under **[Apache-2.0](./LICENSE)**. Contributions are welcome when they preserve the small deterministic core.
 
-See `OSS_READINESS.md` for the release checklist and the remaining security, licensing, CI, hosted-service, and benchmark-review work. The local MVP is testable, but the development tunnel is not a production or public-plugin deployment.
+- **[Architecture](./docs/ARCHITECTURE.md)** — components, object contract, retrieval, and trust boundaries
+- **[Compatibility](./docs/COMPATIBILITY.md)** — tested runtimes, platforms, clients, and upgrade expectations
+- **[Database operations](./docs/DATABASE_OPERATIONS.md)** — backup, restore, migrations, locking, and recovery
+- **[Security policy](./SECURITY.md)** and **[threat model](./docs/THREAT_MODEL.md)** — private reporting and deployment limits
+- **[Contributing](./CONTRIBUTING.md)**, **[support](./SUPPORT.md)**, and **[code of conduct](./CODE_OF_CONDUCT.md)**
+- **[Changelog](./CHANGELOG.md)** and **[release process](./docs/RELEASING.md)**
 
-## Scope boundary
+See **[OSS_READINESS.md](./OSS_READINESS.md)** for the verified release posture and the separate work required for a hosted service.
 
-The MVP intentionally excludes hosted infrastructure, multi-user authentication, embeddings, RAG, background jobs, queues, reminder execution, and automatic taxonomy management. The open-source core can later sit behind HTTP and a managed service without moving agent interpretation into the store.
+---
+
+<p align="center"><strong>Your objects. Your store. Your choice of agent.</strong></p>
