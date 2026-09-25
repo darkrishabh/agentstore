@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "agentstore",
   "version": "0.2.0",
-  "description": "Reliable save and retrieval routing for AgentStore.",
+  "description": "Local AgentStore MCP connection with reliable save and retrieval routing.",
   "author": {
     "name": "Rishabh Mehan"
   },
@@ -12,7 +12,7 @@
       "interface": {
         "displayName": "AgentStore",
         "shortDescription": "Save and retrieve portable agent-owned objects.",
-        "longDescription": "Routes explicit save requests and reliable paginated retrieval through an already-connected AgentStore MCP server.",
+        "longDescription": "Connects to your local AgentStore MCP server and routes explicit saves and reliable paginated retrieval. Start the server separately with Docker Compose or Node.js.",
         "developerName": "Rishabh Mehan",
         "category": "Productivity",
         "capabilities": ["Read", "Write"],

@@ -1,0 +1,50 @@
+services:
+  mcp:
+    build: .
+    init: true
+    restart: unless-stopped
+    environment:
+      AGENTSTORE_DB_PATH: /data/agentstore.sqlite
+      AGENTSTORE_MCP_HOST: 0.0.0.0
+      AGENTSTORE_MCP_TOKEN: ${AGENTSTORE_MCP_TOKEN:-}
+    ports:
+      - "127.0.0.1:${AGENTSTORE_MCP_PORT:-4311}:4311"
+    volumes:
+      - agentstore-data:/data
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4311/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  dashboard:
+    build: .
+    init: true
+    restart: unless-stopped
+    command: [node, dist/src/dashboard-server.js]
+    environment:
+      AGENTSTORE_DB_PATH: /data/agentstore.sqlite
+      AGENTSTORE_DASHBOARD_HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:${AGENTSTORE_DASHBOARD_PORT:-4310}:4310"
+    volumes:
+      - agentstore-data:/data
+    depends_on:
+      mcp:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4310/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  agentstore-data:

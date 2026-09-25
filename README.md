@@ -48,7 +48,25 @@ AgentStore is a small, user-owned object store. Connect your agents to the same 
 
 ## Try it locally
 
-Requires **Node.js 22+**. From a fresh checkout:
+### Docker — recommended
+
+Requires Docker with Compose v2. No Node.js or database installation needed:
+
+```bash
+git clone https://github.com/darkrishabh/agentstore.git
+cd agentstore
+docker compose up --build -d --wait
+```
+
+Open **[localhost:4310](http://127.0.0.1:4310)**. MCP is at **`http://127.0.0.1:4311/mcp`**.
+Both services share a persistent SQLite volume. No database credentials are needed.
+Install the [bundled Codex or Claude plugin](./docs/GETTING_STARTED.md) to get the MCP connection and routing skill together.
+
+Stop with `docker compose down`; your data stays. See [Docker setup and backups](./docs/DOCKER.md).
+
+### Native Node.js
+
+Requires **Node.js 22+**. Do not run this alongside Docker on the same ports:
 
 ```bash
 git clone https://github.com/darkrishabh/agentstore.git
@@ -66,6 +84,8 @@ npm run mcp:http
 ```
 
 Your local MCP endpoint is **`http://127.0.0.1:4311/mcp`**. The dashboard and MCP server share `data/agentstore.sqlite` by default.
+
+To choose another SQLite file, set `AGENTSTORE_DB_PATH` in `.env` (see [.env.example](./.env.example)). PostgreSQL is **not implemented**; a PostgreSQL connection URL will not work. Docker uses its own named volume, separate from the native database.
 
 → **[Connect Codex or Claude, install routing plugins, and configure HTTPS](./docs/GETTING_STARTED.md)**
 
@@ -112,6 +132,8 @@ npm audit
 ```
 
 Tests cover CRUD, versioning, TTL, FTS synchronization, structured and shape filters, migration, complete pagination, large-store label retrieval, MCP responses, and HTTP authentication.
+
+With Docker running, `npm run test:docker` tests a temporary Compose stack: cross-client save/search/get, paginated lists, dashboard edits, direct SQLite verification, authentication, and persistence after container recreation. It does not touch your normal store.
 
 ## Open-source core
 

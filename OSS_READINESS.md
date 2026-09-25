@@ -8,6 +8,8 @@ AgentStore 0.2.0 is prepared as an open-source **local alpha**. This document se
 | --- | --- | --- |
 | License | Ready | Apache License 2.0 in `LICENSE`; package metadata declares `Apache-2.0`. |
 | Reproducible install | Ready | Node.js 22+, committed lockfile, and fresh `npm ci` validation. |
+| Container setup | Ready for local alpha | Compose starts MCP and dashboard with a shared SQLite volume; `npm run test:docker` verifies cross-client retrieval and persistence after container recreation. |
+| Client integrations | Packaged | Codex and Claude plugins bundle local MCP plus routing; direct MCP examples support custom connections. Model routing is not guaranteed. |
 | Automated quality gate | Ready | GitHub Actions runs type-checking, tests, build, distribution validation, documentation checks, audit, and package inspection. |
 | Tests | Ready for alpha | CRUD, versioning, TTL, retrieval, migration, pagination, MCP, and HTTP-authentication coverage. |
 | Secret/data hygiene | Ready for alpha | Environment files, databases, logs, dependencies, and build output are ignored; release validation scans common secret patterns and absolute user paths. |

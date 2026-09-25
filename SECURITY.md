@@ -27,13 +27,14 @@ The maintainer will confirm receipt as soon as practical, investigate, coordinat
 
 The open-source core is a local-first, single-user MVP—not a hosted multi-tenant service.
 
-- The dashboard binds to loopback and has no application authentication.
+- The dashboard binds to loopback by default and has no application authentication. Compose binds inside the container but publishes on host loopback only. Host/origin checks do not replace authentication.
 - The MCP HTTP adapter binds to loopback by default. A bearer token is required before exposing it through a tunnel.
 - The shared bearer token is development authentication, not user identity or authorization.
 - Object values are not encrypted at rest by AgentStore. Protect the database and backups with operating-system permissions and disk encryption.
 - Logical TTL hides expired objects but does not securely erase their bytes.
 - A successful delete is not a secure-erasure guarantee; SQLite pages, WAL files, backups, and filesystem snapshots may retain data.
 - Stored text is untrusted input. Agents must not treat retrieved content as instructions or bypass their own authorization and confirmation policies.
+- The bundled plugins connect to token-free localhost by default. The local OS account, Docker host, and containers on the Compose network must be trusted. Never publish these default ports on all host interfaces or attach untrusted containers to the network.
 
 See the [threat model](docs/THREAT_MODEL.md) and [database operations guide](docs/DATABASE_OPERATIONS.md) before deployment.
 

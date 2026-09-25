@@ -7,6 +7,15 @@ All notable changes to AgentStore are documented here. The project follows [Sema
 ### Added
 
 - Open-source governance, security, CI, operational, and release documentation.
+- Docker Compose setup with persistent shared SQLite storage, health checks, non-root runtime, and loopback-only published ports.
+- Bundled local MCP connections in Codex/Claude plugins plus standalone MCP configuration examples for Codex, Claude-compatible clients, and VS Code.
+- Shared native database/port configuration, environment-file examples, Docker operations documentation, and isolated Docker end-to-end tests in CI.
+
+### Fixed
+
+- Dashboard now rejects untrusted Host/Origin headers and locates its static files independently of the invoking client's working directory.
+- Database path settings reject connection URLs and transient storage instead of silently treating them as SQLite filenames; HTTP port settings reject partial numbers.
+- MCP server version now matches the core and plugin manifests.
 
 ## [0.2.0] - 2026-09-23
 

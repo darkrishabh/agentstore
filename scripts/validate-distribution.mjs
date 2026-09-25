@@ -24,6 +24,13 @@ const requiredFiles = [
   "docs/GETTING_STARTED.md",
   "docs/COMPATIBILITY.md",
   "docs/DATABASE_OPERATIONS.md",
+  "docs/DOCKER.md",
+  "Dockerfile",
+  "compose.yaml",
+  ".dockerignore",
+  "integrations/codex.toml",
+  "integrations/mcp.json",
+  "integrations/vscode.mcp.json",
   "plugins/agentstore/skills/agentstore-routing/SKILL.md",
 ];
 
@@ -36,6 +43,18 @@ for (const [name, manifest] of Object.entries({ portable, codex, claude })) {
 const marketplacePlugin = claudeMarketplace.plugins?.find((plugin) => plugin.name === "agentstore");
 assert(marketplacePlugin?.version === pkg.version, "Claude marketplace version does not match core");
 for (const file of requiredFiles) assert(existsSync(file), `missing required distribution file: ${file}`);
+
+assert(codex.mcpServers === "./.mcp.json", "Codex compatibility manifest must bundle MCP");
+const portableMcp = readJson("plugins/agentstore/mcp.json");
+const legacyMcp = readJson("plugins/agentstore/.mcp.json");
+for (const config of [portableMcp, legacyMcp, readJson("integrations/mcp.json")]) {
+  assert(Object.keys(config.mcpServers).join() === "agentstore", "bundle must expose exactly one MCP connection");
+  assert(config.mcpServers.agentstore.url === "http://127.0.0.1:4311/mcp", "bundled connection must stay loopback-only");
+  assert(!config.mcpServers.agentstore.headers, "do not distribute credentials");
+}
+assert(portableMcp.mcpServers.agentstore.type === "streamable-http", "portable transport must use the portable schema");
+assert(legacyMcp.mcpServers.agentstore.type === "http", "Claude/legacy transport must use http");
+assert(readJson("integrations/vscode.mcp.json").servers.agentstore.url === legacyMcp.mcpServers.agentstore.url, "VS Code endpoint drift");
 
 const skill = readFileSync("plugins/agentstore/skills/agentstore-routing/SKILL.md", "utf8");
 assert(/^---\n[\s\S]*?^name:\s*agentstore-routing\s*$/m.test(skill), "routing skill frontmatter is invalid");

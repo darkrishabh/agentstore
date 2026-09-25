@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { request } from "node:http";
 
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { afterEach, describe, expect, it } from "vitest";
@@ -73,5 +74,47 @@ describe("Streamable HTTP MCP adapter", () => {
 
     const response = await fetch(running.url, { method: "POST" });
     expect(response.status).toBe(401);
+    const wrongToken = await fetch(running.url, { method: "POST", headers: { Authorization: "Bearer wrong" } });
+    expect(wrongToken.status).toBe(401);
+    expect((await fetch(new URL("/health", running.url))).status).toBe(200);
+  });
+
+  it("retains host and origin validation with container binding", async () => {
+    directory = mkdtempSync(join(tmpdir(), "agentstore-http-host-"));
+    running = await startAgentStoreHttpServer({ databasePath: join(directory, "test.sqlite"), port: 0, host: "0.0.0.0" });
+    // Node fetch rewrites Host; use a raw HTTP client for the rebinding check.
+    const status = await new Promise<number | undefined>((resolve, reject) => {
+      const req = request(running!.url, { headers: { Host: "attacker.example" } }, (response) => {
+        response.resume();
+        resolve(response.statusCode);
+      });
+      req.on("error", reject);
+      req.end();
+    });
+    expect(status).toBe(403);
+    expect((await fetch(running.url, { headers: { Origin: "https://attacker.example" } })).status).toBe(403);
+    expect((await fetch(new URL("/health", running.url))).status).toBe(200);
+  });
+
+  it("retrieves saved values and FTS candidates after an HTTP server restart", async () => {
+    directory = mkdtempSync(join(tmpdir(), "agentstore-http-restart-"));
+    const databasePath = join(directory, "persist.sqlite");
+    running = await startAgentStoreHttpServer({ databasePath, port: 0, bearerToken: "" });
+    client = new Client({ name: "writer", version: "1.0.0" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(running.url)));
+    await client.callTool({ name: "store_object", arguments: {
+      key: "persistent-note", kind: "note", value: { text: "orchid launch checklist" }, searchable_text: "orchid launch checklist",
+    } });
+    await client.close();
+    await running.close();
+    running = await startAgentStoreHttpServer({ databasePath, port: 0, bearerToken: "" });
+    client = new Client({ name: "reader", version: "1.0.0" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(running.url)));
+    const found = await client.callTool({ name: "search_objects", arguments: { query: "orchid" } });
+    const results = (found.structuredContent as { results: Array<Record<string, unknown>> }).results;
+    expect(results[0].key).toBe("persistent-note");
+    expect(results[0]).not.toHaveProperty("value");
+    const full = await client.callTool({ name: "get_object", arguments: { key: "persistent-note" } });
+    expect(full.structuredContent).toMatchObject({ object: { value: { text: "orchid launch checklist" } } });
   });
 });

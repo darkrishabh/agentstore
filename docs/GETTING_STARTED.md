@@ -1,10 +1,54 @@
 # Connect your agents
 
-AgentStore's dashboard and MCP adapter share `data/agentstore.sqlite` by default. Set `AGENTSTORE_DB_PATH` on both processes to use a different database. All clients must point to the same store for cross-agent retrieval.
+AgentStore is a SQLite-backed, single-user object store. PostgreSQL is not implemented. All clients must point to the same server/database for cross-agent retrieval.
+
+## Recommended: Docker and a bundled plugin
+
+From the cloned repository:
+
+```bash
+docker compose up --build -d --wait
+```
+
+This starts MCP at `http://127.0.0.1:4311/mcp` and the dashboard at `http://127.0.0.1:4310`. Both use the same persistent Docker volume; no database credentials or local Node installation are needed. See [Docker setup](DOCKER.md) for storage, backups, ports, and stopping safely.
+
+Then install **one** bundled plugin per client using the commands below. The plugin includes the local MCP connection **and** the routing skill. Do not also register a manual connection to the same server: duplicate tool sets can confuse selection.
+
+### Codex plugin
+
+Run from the repository root:
+
+```bash
+codex plugin marketplace add "$PWD"
+codex plugin add agentstore@personal
+```
+
+The repository's existing Codex marketplace is named `personal`. If a different marketplace with that name is already registered, use the app's plugin installer to select this repository's source explicitly instead of replacing your existing marketplace. Restart/open a new conversation after installation and enable the plugin. The included portable `mcp.json` and legacy `.mcp.json` cover the current and compatibility manifest layouts.
+
+### Claude Code plugin
+
+```bash
+claude plugin marketplace add "$PWD"
+claude plugin install agentstore@agentstore-local --scope user
+```
+
+Restart/open a new conversation and enable the plugin. For a session-only development install:
+
+```bash
+claude --plugin-dir "$PWD/plugins/agentstore"
+```
+
+Both plugins target the default local endpoint without a bearer token. They do not start the server, install themselves into other clients, bypass approvals, or guarantee model tool selection.
+
+## Native Node.js alternative
+
+Requires Node.js 22+. Run `npm ci`. The dashboard and MCP adapter share `data/agentstore.sqlite` by default. Optionally copy `.env.example` to `.env` and set `AGENTSTORE_DB_PATH` to a persistent SQLite file. Native npm commands load `.env`, then `.env.local`; exported environment variables win. Keep the configured path the same for both adapters. Docker data and native data are separate unless explicitly migrated.
+
+Run `npm run mcp:http` and `npm run dashboard` in separate terminals. The bundled plugins work with native HTTP too.
 
 ## Local HTTP connection
 
-Requires Node.js 22+. Install dependencies with `npm ci`, then run:
+For clients without plugins, or if you prefer manual MCP registration, start the native HTTP server (or use the running Compose service):
 
 ```bash
 npm run mcp:http
@@ -36,7 +80,7 @@ Run these commands from the repository root. The client launches the MCP process
 ```bash
 claude mcp add --scope user agentstore \
   --env AGENTSTORE_DB_PATH="$PWD/data/agentstore.sqlite" \
-  -- npm --prefix "$PWD" run mcp
+  -- npm --silent --prefix "$PWD" run mcp
 ```
 
 ### Codex
@@ -44,43 +88,59 @@ claude mcp add --scope user agentstore \
 ```bash
 codex mcp add agentstore \
   --env AGENTSTORE_DB_PATH="$PWD/data/agentstore.sqlite" \
-  -- npm --prefix "$PWD" run mcp
+  -- npm --silent --prefix "$PWD" run mcp
 ```
 
 Choose one transport for a server named `agentstore`; don't register both under the same name.
 
-## Optional routing plugins
+## Custom endpoint or bearer token
 
-The routing skill reinforces explicit saves, search-then-get retrieval, exact cursor continuation, count-only queries, and lexical fallbacks. It cannot guarantee every model will call a tool or bypass write approvals.
+If you change the port, enable authentication, or use HTTPS, register the connection explicitly instead of enabling the bundled default connection. Do not put real tokens in tracked plugin files. A plugin's fixed URL is not automatically changed by `.env`.
 
-The plugin deliberately does not bundle an MCP server or bearer token. Register the connection separately and keep it enabled.
-
-### Codex
-
-From the repository root:
+For Codex, export `AGENTSTORE_MCP_TOKEN` in the environment that **launches Codex**, then register:
 
 ```bash
-codex plugin marketplace add "$PWD"
+codex mcp add agentstore --url http://127.0.0.1:4311/mcp \
+  --bearer-token-env-var AGENTSTORE_MCP_TOKEN
 ```
 
-Restart Codex, select the `personal` marketplace source, and install AgentStore.
+Replace the URL as needed. A server-side `.env` does not export secrets into an already-running Codex app. Use [integrations/codex.toml](../integrations/codex.toml) as a mergeable template, not a replacement for your full config.
 
-### Claude Code
+For Claude Code, merge this server entry into a private MCP configuration. Claude resolves the variable from its launch environment:
 
-From the repository root:
-
-```bash
-claude plugin marketplace add "$PWD"
-claude plugin install agentstore@agentstore-local --scope user
+```json
+{
+  "mcpServers": {
+    "agentstore": {
+      "type": "http",
+      "url": "http://127.0.0.1:4311/mcp",
+      "headers": { "Authorization": "Bearer ${AGENTSTORE_MCP_TOKEN}" }
+    }
+  }
+}
 ```
 
-For development without installing:
+Use the same token on the server. For a token-free custom port, simply change the URL and omit headers. For a locally customized plugin, change the URLs in **both** `plugins/agentstore/mcp.json` and `plugins/agentstore/.mcp.json` before installing; reinstall/update the plugin after source changes because installed plugins may be cached.
 
-```bash
-claude --plugin-dir "$PWD/plugins/agentstore"
-```
+The routing skill is also independently distributable from [plugins/agentstore/skills/agentstore-routing](../plugins/agentstore/skills/agentstore-routing). To use it alongside a manual connection without bundling a second MCP connection, copy that directory into the client's supported skills directory (`~/.agents/skills/` for Codex or `~/.claude/skills/` for Claude Code). Check for an existing copy before replacing it.
 
-Invoke `/agentstore:agentstore-routing` explicitly, or try an ordinary request such as “Save this to my notes: the launch checklist is ready.” Only treat it as saved when the tool succeeds.
+## Other MCP clients
+
+- [integrations/mcp.json](../integrations/mcp.json): Claude Code/compatible `mcpServers` configuration. Merge it into the client's settings rather than overwriting existing servers.
+- [integrations/vscode.mcp.json](../integrations/vscode.mcp.json): merge into `.vscode/mcp.json` for VS Code/Copilot, then trust and enable the server.
+- Any Streamable HTTP MCP client: add `http://127.0.0.1:4311/mcp`; no product-specific server fork is needed.
+
+Clients that only support stdio can use the alternative above with an **absolute** SQLite path. HTTP is recommended when multiple agents should share the same running store. Browser/cloud-hosted clients cannot reach your machine's localhost; they require a reachable HTTPS endpoint and a supported authentication mechanism. This source package does not provision that or implement OAuth.
+
+## Verify save and retrieval
+
+1. In one connected agent: “Save this to my notes: the orchid launch checklist is ready.”
+2. Confirm that `store_object` succeeded and the object appears in the dashboard.
+3. In another connected agent: “Find my note about the orchid launch checklist.”
+4. Inspect the actual `search_objects` followed by `get_object` calls and returned value.
+5. Ask “Show me all my notes” and verify pagination if there are more than one page.
+
+The routing skill reinforces explicit saves, search-then-get, exact cursor continuation, count-only queries, and lexical fallbacks. Only treat information as saved after a successful tool response. Nothing is silently persisted just because the agent says it will remember.
 
 ## Dashboard
 
@@ -94,7 +154,7 @@ Open `http://127.0.0.1:4310`. Browse metrics and objects, filter and search, ins
 
 ## Development HTTPS tunnel
 
-Configure your own Cloudflare tunnel and HTTPS hostname pointing to `/mcp`. Copy `.env.example` to the gitignored `.env.local` and replace both placeholders:
+Configure your own Cloudflare tunnel and HTTPS hostname pointing to `/mcp`. Set these in the gitignored `.env.local` for the native workflow (or explicitly use `--env-file .env.local` for Compose):
 
 ```dotenv
 AGENTSTORE_MCP_TOKEN=replace-with-a-long-random-token
@@ -112,6 +172,8 @@ npm run mcp:tunnel
 ```
 
 Configure each client to use your HTTPS URL and send the same token in an `Authorization: Bearer ...` header. A token is mandatory before exposing the endpoint through a public tunnel. `/health` remains unauthenticated for monitoring.
+
+The helper rewrites the upstream Host header to `localhost`, which the server validates. Do not forward the dashboard. Clients must support the chosen authentication mechanism; an HTTPS URL alone is not sufficient.
 
 This is development infrastructure, not a public managed service. See [OSS_READINESS.md](../OSS_READINESS.md) for production authorization, isolation, and operational requirements. Never commit or distribute `.env.local`.
 
@@ -142,8 +204,13 @@ npm run check
 npm test
 npm run build
 npm audit
+npm run test:docker
 ```
 
 The neutral comparison harness is maintained separately in the sibling `agentstore-bench` workspace; it is not bundled in this repository. Its reports include source hashes, per-query rankings, local latency, scale behavior, and individual capability checks.
+
+## Client format references
+
+The packaging follows the official [OpenAI plugin format](https://developers.openai.com/plugins/build/plugins), [Codex MCP configuration](https://developers.openai.com/codex/mcp), [Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference), and [VS Code MCP configuration](https://code.visualstudio.com/docs/agent-customization/mcp-servers). Installing locally is not publication or approval in a vendor marketplace.
 
 ← [Back to the README](../README.md)

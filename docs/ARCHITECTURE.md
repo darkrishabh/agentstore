@@ -22,7 +22,9 @@ MCP and the dashboard are adapters. The TypeScript `AgentStore` class is the cor
 | `src/mcp.ts` | Tool schemas and mapping between MCP calls and the core. |
 | `src/mcp-http.ts` | Loopback Streamable HTTP transport, origin/host checks, and optional bearer-token authentication. |
 | `src/dashboard-server.ts` and `web/` | Local inspection and CRUD interface over the core. |
-| `plugins/agentstore/` | Optional client-side routing guidance; it does not contain credentials or host the store. |
+| `src/config.ts` | Shared persistent SQLite file, port, and bind-host settings for adapters. |
+| `plugins/agentstore/` | Optional routing skill and default local MCP connection; it does not contain credentials or host the store. |
+| `compose.yaml` and `Dockerfile` | Local MCP/dashboard packaging with a shared SQLite volume and loopback port publishing. |
 
 ## Object contract
 

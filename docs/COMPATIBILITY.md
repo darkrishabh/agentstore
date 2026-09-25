@@ -31,6 +31,10 @@ Supported adapters:
 - MCP Streamable HTTP on loopback;
 - local dashboard HTTP on loopback.
 
+Docker Compose v2 packages both HTTP services on published loopback ports with a persistent SQLite volume. The image uses Node.js 22 on Debian Bookworm; native SQLite bindings are built for the target architecture. The Docker CI job exercises Linux; local container testing also runs through Docker on macOS. PostgreSQL is not a supported backend.
+
+Codex and Claude plugin packages include the default local MCP connection and the routing skill. Direct MCP templates are supplied for Codex, Claude-compatible clients, and VS Code. Packaging validators and SDK tests do not prove natural-language tool selection in every client/version.
+
 The development Cloudflare tunnel is convenience tooling, not a supported hosted-service environment.
 
 ## Database upgrades

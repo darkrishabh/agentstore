@@ -1,15 +1,22 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFileSync } from "node:fs";
-import { extname, resolve } from "node:path";
+import { basename, dirname, extname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { localhostHostValidation, localhostOriginValidation } from "@modelcontextprotocol/node";
 
 import { AgentStore } from "./store.js";
 import { OBJECT_KINDS, type ObjectKind, type PutObjectInput, type SearchSort } from "./types.js";
+import { bindHost, databasePath as configuredDatabasePath, portNumber } from "./config.js";
 
-const projectRoot = process.cwd();
-const databasePath = process.env.AGENTSTORE_DB_PATH ?? resolve(projectRoot, "data", "agentstore.sqlite");
-const port = Number(process.env.PORT ?? 4310);
+const databasePath = configuredDatabasePath();
+const port = portNumber(process.env.AGENTSTORE_DASHBOARD_PORT ?? process.env.PORT, 4310);
+const host = bindHost(process.env.AGENTSTORE_DASHBOARD_HOST);
 const store = new AgentStore(databasePath);
-const webRoot = resolve(projectRoot, "web");
+// Both source execution and dist/src execution work from any client working directory.
+const moduleDirectory = fileURLToPath(new URL(".", import.meta.url));
+const webRoot = resolve(moduleDirectory, basename(dirname(moduleDirectory)) === "dist" ? "../../web" : "../web");
+const validateHost = localhostHostValidation();
+const validateOrigin = localhostOriginValidation();
 
 const staticFiles = new Map([
   ["/", "index.html"],
@@ -19,6 +26,7 @@ const staticFiles = new Map([
 ]);
 
 const server = createServer(async (request, response) => {
+  if (!validateHost(request, response) || !validateOrigin(request, response)) return;
   try {
     await route(request, response);
   } catch (error) {
@@ -27,8 +35,9 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`AgentStore dashboard: http://127.0.0.1:${port}`);
+server.listen(port, host, () => {
+  const address = server.address();
+  console.log(`AgentStore dashboard: http://127.0.0.1:${typeof address === "object" && address ? address.port : port}`);
   console.log(`Database: ${databasePath}`);
 });
 

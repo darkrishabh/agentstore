@@ -12,6 +12,7 @@ import { createMcpHandler } from "@modelcontextprotocol/server";
 
 import { createAgentStoreServer } from "./mcp.js";
 import { AgentStore } from "./store.js";
+import { bindHost, databasePath as configuredDatabasePath, portNumber } from "./config.js";
 
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 4311;
@@ -20,6 +21,7 @@ export interface AgentStoreHttpOptions {
   bearerToken?: string;
   databasePath?: string;
   port?: number;
+  host?: string;
 }
 
 export interface RunningAgentStoreHttpServer {
@@ -30,8 +32,9 @@ export interface RunningAgentStoreHttpServer {
 export async function startAgentStoreHttpServer(
   options: AgentStoreHttpOptions = {},
 ): Promise<RunningAgentStoreHttpServer> {
-  const databasePath = options.databasePath ?? resolve(process.cwd(), "data", "agentstore.sqlite");
+  const databasePath = options.databasePath ?? configuredDatabasePath();
   const port = options.port ?? DEFAULT_PORT;
+  const host = bindHost(options.host);
   const bearerToken = options.bearerToken ?? process.env.AGENTSTORE_MCP_TOKEN;
   const store = new AgentStore(databasePath);
   const handler = createMcpHandler(() => createAgentStoreServer(databasePath, store), {
@@ -75,7 +78,13 @@ export async function startAgentStoreHttpServer(
     });
   });
 
-  await listen(httpServer, port);
+  try {
+    await listen(httpServer, port, host);
+  } catch (error) {
+    await handler.close();
+    store.close();
+    throw error;
+  }
   const address = httpServer.address();
   if (!address || typeof address === "string") {
     await closeHttpServer(httpServer);
@@ -102,11 +111,11 @@ function hasValidBearerToken(authorization: string | undefined, bearerToken: str
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-function listen(server: HttpServer, port: number): Promise<void> {
+function listen(server: HttpServer, port: number, host: string): Promise<void> {
   return new Promise((resolvePromise, reject) => {
     const onError = (error: Error) => reject(error);
     server.once("error", onError);
-    server.listen(port, DEFAULT_HOST, () => {
+    server.listen(port, host, () => {
       server.off("error", onError);
       resolvePromise();
     });
@@ -125,16 +134,14 @@ function closeHttpServer(server: HttpServer): Promise<void> {
 
 const directEntryPath = process.argv[1] ? resolve(process.argv[1]) : undefined;
 if (directEntryPath === fileURLToPath(import.meta.url)) {
-  const databasePath = process.env.AGENTSTORE_DB_PATH ?? resolve(process.cwd(), "data", "agentstore.sqlite");
-  const parsedPort = Number.parseInt(process.env.AGENTSTORE_MCP_PORT ?? String(DEFAULT_PORT), 10);
-  if (!Number.isInteger(parsedPort) || parsedPort < 0 || parsedPort > 65_535) {
-    throw new Error("AGENTSTORE_MCP_PORT must be an integer between 0 and 65535");
-  }
+  const databasePath = configuredDatabasePath();
+  const parsedPort = portNumber(process.env.AGENTSTORE_MCP_PORT, DEFAULT_PORT);
 
   const running = await startAgentStoreHttpServer({
     bearerToken: process.env.AGENTSTORE_MCP_TOKEN,
     databasePath,
     port: parsedPort,
+    host: process.env.AGENTSTORE_MCP_HOST,
   });
   console.log(`AgentStore MCP listening at ${running.url}`);
   console.log(`Database: ${databasePath}`);

@@ -7,6 +7,7 @@ import * as z from "zod/v4";
 
 import { AgentStore, toMetadata } from "./store.js";
 import { OBJECT_KINDS } from "./types.js";
+import { databasePath } from "./config.js";
 
 const kindSchema = z.enum(OBJECT_KINDS);
 const timestampSchema = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
@@ -66,7 +67,7 @@ export const MCP_SERVER_INSTRUCTIONS =
 export function createAgentStoreServer(databasePath: string, sharedStore?: AgentStore): McpServer {
   const store = sharedStore ?? new AgentStore(databasePath);
   const server = new McpServer(
-    { name: "agentstore", version: "0.1.0" },
+    { name: "agentstore", version: "0.2.0" },
     {
       instructions: MCP_SERVER_INSTRUCTIONS,
     },
@@ -203,6 +204,6 @@ function compactObject<T extends Record<string, unknown>>(object: T): Partial<T>
 
 const directEntryPath = process.argv[1] ? resolve(process.argv[1]) : undefined;
 if (directEntryPath === fileURLToPath(import.meta.url)) {
-  const databasePath = process.env.AGENTSTORE_DB_PATH ?? resolve(process.cwd(), "data", "agentstore.sqlite");
-  void serveStdio(() => createAgentStoreServer(databasePath));
+  const path = databasePath();
+  void serveStdio(() => createAgentStoreServer(path));
 }
